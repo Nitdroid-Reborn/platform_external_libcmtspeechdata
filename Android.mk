@@ -53,3 +53,33 @@ LOCAL_C_INCLUDES:= \
 LOCAL_MODULE:=libcheck_static
 
 include $(BUILD_STATIC_LIBRARY)
+
+#
+# tests
+#
+
+include $(CLEAR_VARS)
+LOCAL_SRC_FILES:= test_cmtspeech_msgs.c
+LOCAL_C_INCLUDES:=$(LOCAL_PATH)/check
+LOCAL_STATIC_LIBRARIES:=libcmtspeechdata_static libcheck_static
+LOCAL_MODULE:=test_cmtspeech_msgs
+include $(BUILD_EXECUTABLE)
+
+include $(CLEAR_VARS)
+LOCAL_SRC_FILES:= test_cmtspeech.c
+LOCAL_C_INCLUDES:=$(LOCAL_PATH)/check
+LOCAL_STATIC_LIBRARIES:=libcmtspeechdata_static libcheck_static
+LOCAL_MODULE:=test_cmtspeech
+include $(BUILD_EXECUTABLE)
+
+include $(CLEAR_VARS)
+LOCAL_SRC_FILES:= send_cmtspeech_reset.c
+LOCAL_STATIC_LIBRARIES:=libcmtspeechdata_static
+LOCAL_MODULE:=send_cmtspeech_reset
+include $(BUILD_EXECUTABLE)
+
+include $(CLEAR_VARS)
+LOCAL_SRC_FILES:= cmtspeech_ramp_test.c
+LOCAL_STATIC_LIBRARIES:=libcmtspeechdata_static
+LOCAL_MODULE:=cmtspeech_ramp_test
+include $(BUILD_EXECUTABLE)
