@@ -24,10 +24,9 @@ LOCAL_C_INCLUDES := \
 	$(KERNEL_HEADERS) \
 ##
 
-LOCAL_MODULE:=libcmtspeechdata
-LOCAL_PRELINK_MODULE:=false
+LOCAL_MODULE:=libcmtspeechdata_static
 
-include $(BUILD_SHARED_LIBRARY)
+include $(BUILD_STATIC_LIBRARY)
 
 #
 # check - C unittest framework
