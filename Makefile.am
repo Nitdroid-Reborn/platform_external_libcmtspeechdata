@@ -5,13 +5,6 @@
 SUBDIRS =		doc \
 			dummy-backend
 
-noinst_PROGRAMS = 	test_cmtspeech_msgs \
-			test_ring \
-			test_cmtspeech
-
-TESTS = 		test_cmtspeech_msgs \
-			test_ring
-
 EXTRA_DIST = 		cmtspeech_config.h.in \
 			libcmtspeechdata.ver
 
@@ -55,8 +48,15 @@ libcmtspeechdata_la_LDFLAGS =  -Wl,--version-script,$(srcdir)/libcmtspeechdata.v
 # test application sources
 # ------------------------
 
-bin_PROGRAMS =		send_cmtspeech_reset \
-			cmtspeech_ramp_test
+TESTS = 		test_cmtspeech_msgs \
+			test_ring
+
+noinst_PROGRAMS = 	test_cmtspeech_msgs \
+			test_ring \
+			test_cmtspeech \
+			utils/send_cmtspeech_reset \
+			utils/cmtspeech_ramp_test \
+			utils/cmtspeech_ofono_test
 
 noinst_HEADERS =	$(cmtspeechdata_common_inc) \
 			$(cmtspeech_data_kernel_inc)
@@ -77,13 +77,27 @@ test_ring_CFLAGS = 	@CHECK_CFLAGS@
 test_ring_LDADD = 	@CHECK_LIBS@ \
 			libcmtspeechdata.la
 
-send_cmtspeech_reset_SOURCES = send_cmtspeech_reset.c
-send_cmtspeech_reset_LDADD = \
+utils_send_cmtspeech_reset_SOURCES = utils/send_cmtspeech_reset.c
+utils_send_cmtspeech_reset_LDADD = \
 			libcmtspeechdata.la
 
-cmtspeech_ramp_test_SOURCES = cmtspeech_ramp_test.c
-cmtspeech_ramp_test_LDADD = \
+utils_cmtspeech_ramp_test_SOURCES = utils/cmtspeech_ramp_test.c
+utils_cmtspeech_ramp_test_LDADD = \
 			libcmtspeechdata.la
+
+utils_cmtspeech_ofono_test_SOURCES = utils/cmtspeech_ofono_test.c
+utils_cmtspeech_ofono_test_CFLAGS = \
+			@DBUS_CFLAGS@
+utils_cmtspeech_ofono_test_LDADD = \
+			@DBUS_LIBS@ \
+			libcmtspeechdata.la
+
+# pkg-config
+# ----------
+
+pkgconfigdir = $(libdir)/pkgconfig
+pkgconfig_DATA = libcmtspeechdata.pc
+$(pkgconfig_DATA): config.status
 
 # documentation rules
 # -------------------
