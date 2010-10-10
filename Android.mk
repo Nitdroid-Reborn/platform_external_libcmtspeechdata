@@ -75,3 +75,9 @@ LOCAL_SHARED_LIBRARIES:=libcmtspeechdata
 LOCAL_MODULE:=test_cmtspeech
 include $(BUILD_EXECUTABLE)
 
+include $(CLEAR_VARS)
+LOCAL_SRC_FILES:= utils/cmtspeech_ofono_test.c
+LOCAL_C_INCLUDES:= $(call include-path-for, dbus)
+LOCAL_SHARED_LIBRARIES:=libcmtspeechdata libdbus
+LOCAL_MODULE:=cmtspeech_ofono_test
+include $(BUILD_EXECUTABLE)
