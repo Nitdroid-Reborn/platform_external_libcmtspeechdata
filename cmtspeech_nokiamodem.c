@@ -82,12 +82,16 @@
 #define DL_SLOTS                3
 #define SHARED_MEMORY_AREA_PAGE 4096
 #define MAX_UL_ERRORS_PAUSE     5  /* pause UL after this many errors */
+#define CLOCK_WAKE_UP_DELAY_NS  500000
 
-  /* reference:
+#if NOKIAMODEM_VDD2LOCK
+  /* maemo5-specific kernel interface for locking memory+ssi bus speed
+   * reference:
    * - linux/arch/arm/plat-omap/include/mach/omap34xx.h */
 #define PM_VDD2_LOCK_TO_OPP3   3
 #define PM_VDD2_UNLOCK         0
 #define PM_VDD2_LOCK_INTERFACE "/sys/power/vdd2_lock"
+#endif
 
 /* support use of 'swapped little endian' sample layout
  * for transfering speech data frames */
@@ -224,6 +228,7 @@ static int priv_write(cmtspeech_nokiamodem_t *priv, cmtspeech_cmd_t msg)
   return cmtspeech_bc_write_command(&priv->bcstate, priv, msg, priv->d.fd);
 }
 
+#if NOKIAMODEM_VDD2LOCK
 /**
  * Lock/unlocks system resources so that no changes in DVFS mods
  * that would impact SSI driver clocking will be initiated.
@@ -248,6 +253,7 @@ static void priv_set_ssi_lock(cmtspeech_nokiamodem_t *priv, bool enabled)
     TRACE_IO(DEBUG_PREFIX "Unable to lock VDD2, dev %s ('%s').", PM_VDD2_LOCK_INTERFACE, strerror(errno));
   }
 }
+#endif
 
 /**
  * Allocates SSI wakeline from the driver.
@@ -269,10 +275,19 @@ static int priv_acquire_wakeline(cmtspeech_nokiamodem_t *priv, int id)
     res = ioctl (priv->d.fd, CS_SET_WAKELINE, &status);
     TRACE_IO(DEBUG_PREFIX "Toggled SSI wakeline to %u by id %02x (res %d).", status, id, res);
 
+#if NOKIAMODEM_VDD2LOCK
     /* step: lock VDD2 whenever modem needs to be able to send
      *       messages towards us */
     priv_set_ssi_lock(priv, true);
+#endif
 
+    /* step: this is ugly, but as the hw interface does not provide means to get
+     *       an indication when modem is ready, a small delay is
+     *       needed after raising the wakeline */
+    struct timespec tv;
+    tv.tv_sec = 0;
+    tv.tv_nsec = CLOCK_WAKE_UP_DELAY_NS;
+    nanosleep(&tv, NULL);
   }
   priv->d.wakeline_users |= id;
   return res;
@@ -297,9 +312,11 @@ static int priv_release_wakeline(cmtspeech_nokiamodem_t *priv, int id)
       res = ioctl (priv->d.fd, CS_SET_WAKELINE, &status);
       TRACE_IO(DEBUG_PREFIX "Toggled SSI wakeline to %u by id %02x (res %d).", status, id, res);
 
+#if NOKIAMODEM_VDD2LOCK
       /* step: unlock VDD2 whenever we are sure modem no longer needs
        *       needs to send messages towards us */
       priv_set_ssi_lock(priv, false);
+#endif
     }
   }
   return res;
@@ -312,10 +329,12 @@ static void priv_reset_wakeline_state(cmtspeech_nokiamodem_t *priv)
 
   TRACE_IO(DEBUG_PREFIX "Reseting SSI wakeline state (user mask %x at reset).", priv->d.wakeline_users);
 
+#if NOKIAMODEM_VDD2LOCK
   /* step: make sure VDD2 is unlocked */
   if (priv->d.wakeline_users != 0) {
     priv_set_ssi_lock(priv, false);
   }
+#endif
 
   res = ioctl (priv->d.fd, CS_SET_WAKELINE, &status);
   SOFT_ASSERT(res == 0);
@@ -1412,7 +1431,7 @@ int cmtspeech_dl_buffer_acquire(cmtspeech_t *context, cmtspeech_buffer_t **buf)
   cmtspeech_nokiamodem_t *priv = (cmtspeech_nokiamodem_t*)context;
   nokiamodem_buffer_desc_t *desc;
   uint16_t frame_counter;
-  uint8_t spc_flags, data_length, data_type, sample_rate;
+  uint8_t spc_flags, data_length, data_type, sample_rate, codec_sample_rate;
   int res;
   int slot;
 
@@ -1447,7 +1466,7 @@ int cmtspeech_dl_buffer_acquire(cmtspeech_t *context, cmtspeech_buffer_t **buf)
 
   SOFT_ASSERT(desc == &priv->dlbufdesc[slot]);
 
-  res = cmtspeech_msg_decode_dl_data_header(desc->bd.data, CMTSPEECH_DATA_HEADER_LEN, &frame_counter, &spc_flags, &data_length, &sample_rate, &data_type);
+  res = cmtspeech_msg_decode_dl_data_header_v5(desc->bd.data, CMTSPEECH_DATA_HEADER_LEN, &frame_counter, &spc_flags, &data_length, &sample_rate, &codec_sample_rate, &data_type);
   SOFT_ASSERT(res == 0);
 
   TRACE_DEBUG(DEBUG_PREFIX "DL frame received (hw %d, appl %d, slot %u, %u bytes, frame-counter %u, type %d):", priv->rx_ptr_hw, priv->rx_ptr_appl, slot, priv->slot_size, frame_counter, data_type);
@@ -1455,6 +1474,8 @@ int cmtspeech_dl_buffer_acquire(cmtspeech_t *context, cmtspeech_buffer_t **buf)
   /* note: decode frame header and fill dlbufdesc fields appropriately */
   desc->bd.frame_flags = CMTSPEECH_DATA_TYPE_VALID;
   desc->bd.spc_flags = spc_flags;
+  /* note: reserved bits 0:4 are used for sampling rate info */
+  desc->bd.reserved[0] = codec_sample_rate | (sample_rate << 2);
 
   desc->flags |= BUF_LOCKED;
   *buf = &(desc->bd);
@@ -1718,6 +1739,18 @@ int cmtspeech_backend_message(cmtspeech_t *self, int type, int args, ...)
 {
   /* no-op */
   return -1;
+}
+
+int cmtspeech_buffer_codec_sample_rate(cmtspeech_buffer_t *context)
+{
+  /* note: bits 0:1 of the first reserved slot are used for sample rate */
+  return context->reserved[0] & 3;
+}
+
+int cmtspeech_buffer_sample_rate(cmtspeech_buffer_t *context)
+{
+  /* note: bits 2:3 of the first reserved slot are used for sample rate */
+  return (context->reserved[0] >> 2) & 3;
 }
 
 cmtspeech_bc_state_t *cmtspeech_bc_state_object(cmtspeech_t *context)

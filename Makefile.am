@@ -13,13 +13,20 @@ EXTRA_DIST = 		cmtspeech_config.h.in \
 
 lib_LTLIBRARIES = 	libcmtspeechdata.la
 
-cmtspeechdata_common_src = \
-			cmtspeech_msgs.c \
-			cmtspeech_backend_common.c \
-			sal_debug.c
+nokiamodem_src =	cmtspeech_msgs.c \
+			cmtspeech_nokiamodem.c \
+			cmtspeech_backend_common.c
 
-cmtspeech_data_kernel_inc = \
+nokiamodem_kernel_inc = \
 			kernel-headers/linux/cs-protocol.h
+
+dummy_src = 		dummy-backend/dummy_common.c \
+			dummy-backend/cmtspeech_dummy.c \
+			cmtspeech_backend_common.c \
+			cmtspeech_msgs.c
+
+cmtspeechdata_common_src = \
+			sal_debug.c
 
 cmtspeechdata_common_inc = \
 			cmtspeech_backend_common.h \
@@ -33,6 +40,23 @@ cmtspeechdata_pub_inc = \
 cmtspeechdata_pub_inc_nodist = \
 			cmtspeech_config.h
 
+backend_src=
+backend_cflags=
+backend_noinst_programs=
+backend_tests=
+if USE_BACKEND_DUMMY
+backend_src += $(dummy_src)
+backend_cflags += "-I${top_srcdir}/dummy-backend/"
+endif
+if USE_BACKEND_NOKIAMODEM
+backend_src += $(nokiamodem_src)
+backend_noinst_programs += test_cmtspeech_msgs
+backend_tests += test_cmtspeech_msgs
+endif
+if USE_BACKEND_NULL
+backend_src += 	cmtspeech_null.c
+endif
+
 include_HEADERS =	$(cmtspeechdata_pub_inc)
 
 nodist_include_HEADERS =$(cmtspeechdata_pub_inc_nodist)
@@ -40,26 +64,30 @@ nodist_include_HEADERS =$(cmtspeechdata_pub_inc_nodist)
 libcmtspeechdata_la_SOURCES = \
 			$(cmtspeechdata_common_src) \
 			$(cmtspeechdata_pub_inc) \
-			cmtspeech_nokiamodem.c
-libcmtspeechdata_la_CFLAGS = -prefer-pic
+			$(backend_src)
+
+libcmtspeechdata_la_CFLAGS = \
+			-prefer-pic $(backend_cflags)
 libcmtspeechdata_la_LIBADD = -lrt
-libcmtspeechdata_la_LDFLAGS =  -Wl,--version-script,$(srcdir)/libcmtspeechdata.ver
+libcmtspeechdata_la_LDFLAGS = \
+			-Wl,--version-script,$(srcdir)/libcmtspeechdata.ver \
+			-version-info 1:0:1
 
 # test application sources
 # ------------------------
 
-TESTS = 		test_cmtspeech_msgs \
-			test_ring
+TESTS = 		test_ring \
+			$(backend_tests)
 
-noinst_PROGRAMS = 	test_cmtspeech_msgs \
-			test_ring \
+noinst_PROGRAMS = 	test_ring \
 			test_cmtspeech \
 			utils/send_cmtspeech_reset \
 			utils/cmtspeech_ramp_test \
-			utils/cmtspeech_ofono_test
+			utils/cmtspeech_ofono_test \
+			$(backend_noinst_programs)
 
 noinst_HEADERS =	$(cmtspeechdata_common_inc) \
-			$(cmtspeech_data_kernel_inc)
+			$(nokiamodem_kernel_inc)
 
 test_cmtspeech_msgs_SOURCES = test_cmtspeech_msgs.c
 test_cmtspeech_msgs_CFLAGS = @CHECK_CFLAGS@

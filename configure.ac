@@ -1,4 +1,4 @@
-dnl Copyright (C) 2008,2010 Nokia Corporation
+dnl Copyright (C) 2008,2010,2011 Nokia Corporation
 dnl Contact: Kai Vehmanen <kai.vehmanen@nokia.com>
 dnl Licensed under LGPL. See file COPYING.
 
@@ -10,7 +10,7 @@ AC_PREREQ(2.57)
 dnl information on the package
 dnl ---------------------------
 
-AC_INIT([libcmtspeechdata], [2.0.8+dev])
+AC_INIT([libcmtspeechdata], [2.1.1])
 AC_CONFIG_SRCDIR([cmtspeech.h])
 AM_INIT_AUTOMAKE([foreign])
 AM_MAINTAINER_MODE
@@ -39,9 +39,9 @@ dnl -------------------
 AC_MSG_CHECKING([whether to enable asserts and other debug facilities])
 AC_ARG_ENABLE([extra-debug], 
               AC_HELP_STRING([--disable-extra-debug], [Disable asserts and debug traces]),
-              [AC_MSG_RESULT([no])
-               AC_DEFINE(NDEBUG, 1, [Define to 1 if debug facilities should be disabled])],
-              [AC_MSG_RESULT([yes])])
+              AC_MSG_RESULT([no])
+               AC_DEFINE(NDEBUG, 1, [Define to 1 if debug facilities should be disabled]),
+              AC_MSG_RESULT([yes]))
 
 dnl check for doxygen
 dnl -----------------
@@ -85,6 +85,44 @@ PKG_CHECK_MODULES([CHECK], [check >= 0.9.4])
 PKG_CHECK_MODULES([DBUS], [dbus-1 >= 1.0])
 AC_SUBST(DBUS_CFLAGS)
 AC_SUBST(DBUS_LIBS)
+
+dnl note: this affects the main library build (the dummy
+dnl       library is built always under dummy-backend/ )
+default_backend="nokiamodem"
+AC_ARG_WITH([backend], 
+  AC_HELP_STRING([--with-backend=BACKEND],
+    [select which backend to use]),
+    [
+      case "$withval" in
+          dummy)
+          backend="dummy"
+	  ;;
+        nokiamodem)
+          backend="nokiamodem"
+	  ;;
+        null)
+          backend="null"
+	  ;;
+	*)
+	  AC_MSG_ERROR([unsupported backend: $withval])
+	  ;;
+      esac
+    ])
+if test "x$backend" = "x" ; then
+  backend="$default_backend"
+fi
+AM_CONDITIONAL(USE_BACKEND_DUMMY, [test "x$backend" = "xdummy"])
+AM_CONDITIONAL(USE_BACKEND_NOKIAMODEM, [test "x$backend" = "xnokiamodem"])
+AM_CONDITIONAL(USE_BACKEND_NULL, [test "x$backend" = "xnull"])
+AC_MSG_RESULT([selecting default backend: $backend])
+
+AC_ARG_ENABLE(nokiamodem-vdd2lock, 
+  AC_HELP_STRING([--enable-nokiamodem-vdd2lock],
+    [nokiamodem: Utilize Maemo5 kernel interface for memory/vdd2 locking]),
+  nokiamodem_vdd2lock=$enableval,nokiamodem_vdd2lock=no)
+if test "x$nokiamodem_vdd2lock" = "xyes" ; then
+  AC_DEFINE(NOKIAMODEM_VDD2LOCK, 1, [Define to 1 if debug facilities should be disabled])
+fi
 
 dnl checks for types
 dnl ----------------

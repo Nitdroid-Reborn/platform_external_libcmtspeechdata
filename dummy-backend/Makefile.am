@@ -2,9 +2,7 @@
 # Contact: Kai Vehmanen 
 # Licensed under LGPL. See file COPYING.
 
-EXTRA_DIST = 		dummy_cmt.c
-
-INCLUDES =		-I${top_srcdir}
+INCLUDES =		-I${top_srcdir} -I$(top_builddir)
 
 lib_LTLIBRARIES = 	libcmtspeechdata.la
 
@@ -38,4 +36,6 @@ nodist_libcmtspeechdata_la_SOURCES = \
 			$(dummy_cmtspeechdata_pub_inc_nodist)
 libcmtspeechdata_la_CFLAGS = -prefer-pic
 libcmtspeechdata_la_LIBADD = -lrt
-libcmtspeechdata_la_LDFLAGS =  -Wl,--version-script,$(top_srcdir)/libcmtspeechdata.ver
+libcmtspeechdata_la_LDFLAGS = \
+			-Wl,--version-script,$(top_srcdir)/libcmtspeechdata.ver \
+			-version-info 1:0:1

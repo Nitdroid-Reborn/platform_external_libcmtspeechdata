@@ -1,7 +1,7 @@
 /*
  * This file is part of libcmtspeechdata.
  *
- * Copyright (C) 2008,2009,2010 Nokia Corporation.
+ * Copyright (C) 2008,2009,2010,2011 Nokia Corporation.
  *
  * Contact: Kai Vehmanen <kai.vehmanen@nokia.com>
  *
@@ -32,12 +32,12 @@
 
 #if CMTSPEECH_BIG_ENDIAN_CMDS
 #define BYTE0 0  /* MSB byte */
-#define BYTE1 1  
+#define BYTE1 1
 #define BYTE2 2
 #define BYTE3 3  /* LSB byte */
 #elif CMTSPEECH_LITTLE_ENDIAN_CMDS
 #define BYTE0 3  /* MSB byte */
-#define BYTE1 2  
+#define BYTE1 2
 #define BYTE2 1
 #define BYTE3 0  /* LSB byte */
 #else
@@ -45,7 +45,7 @@
 #endif
 
 /**
- * Returns the type of control message in 'cmd'. 
+ * Returns the type of control message in 'cmd'.
  * On success, returned type is one of CMTSPEECH_RESET_CONN,
  * CSDATA_ACK, CMTSPEECH_CONFIG_RESP, ... On error, -1 is
  * returned.
@@ -55,7 +55,7 @@ int cmtspeech_msg_get_type(const cmtspeech_cmd_t cmd)
   return (int)cmd.d.buf[BYTE0] >> 4;
 }
 
-/** 
+/**
  * On success, returns domain number. On error (invalid message),
  * returns -1.
  */
@@ -67,7 +67,7 @@ int cmtspeech_msg_get_domain(const cmtspeech_cmd_t cmd)
 const char* cmtspeech_msg_type_to_string(const cmtspeech_cmd_t cmd)
 {
 #if !defined(NDEBUG)
-  int domain = 
+  int domain =
     cmtspeech_msg_get_domain(cmd);
 
   if (domain == CMTSPEECH_DOMAIN_CONTROL) {
@@ -101,7 +101,7 @@ const char* cmtspeech_msg_type_to_string(const cmtspeech_cmd_t cmd)
 #endif
 }
 
-/** 
+/**
  * Encodes an UL_SPEECH_DATA_FRAME message to buffer pointed
  * by 'buf'. Returns size of encoded data (in octets).
  */
@@ -120,7 +120,7 @@ int cmtspeech_msg_encode_ul_data_header(uint8_t *buf, int len, uint16_t frame_co
 
 /**
  * Decodes CMT speech message in 'buf'. Results are stored to locations
- * given as arguments. If an argument is NULL, it is ignored.
+ * given as arguments.
  *
  * @return 0 on success, non-zero otherwise
  */
@@ -129,31 +129,45 @@ int cmtspeech_msg_decode_ul_data_header(uint8_t *buf, int len, uint16_t *frame_c
   if (len < 4)
     return -1;
 
-  if (frame_counter)
-    *frame_counter = buf[BYTE0] << 8 | buf[BYTE1];
-  if (data_length)
-    *data_length = (buf[BYTE3] >> 4) & 0x3;
-  if (sample_rate)
-    *sample_rate = (buf[BYTE3] >> 2) & 0x3;
-  if (data_type)
-    *data_type = buf[BYTE3] & 0x3;
+  *frame_counter = buf[BYTE0] << 8 | buf[BYTE1];
+  *data_length = (buf[BYTE3] >> 4) & 0x3;
+  *sample_rate = (buf[BYTE3] >> 2) & 0x3;
+  *data_type = buf[BYTE3] & 0x3;
 
   return 0;
 }
 
-/** 
+/**
  * Encodes an DL_SPEECH_DATA_FRAME message to buffer pointed
  * by 'buf'. Returns size of encoded data (in octets).
  */
 int cmtspeech_msg_encode_dl_data_header(uint8_t *buf, int len, uint16_t frame_counter, uint8_t spc_flags, uint8_t data_length, uint8_t sample_rate, uint8_t data_type)
+{
+  return cmtspeech_msg_encode_dl_data_header_v5(buf,
+						len,
+						frame_counter,
+						spc_flags,
+						data_length,
+						sample_rate,
+						CMTSPEECH_SAMPLE_RATE_NONE,
+						data_type);
+}
+
+/**
+ * Encodes an DL_SPEECH_DATA_FRAME message to buffer pointed
+ * by 'buf'. Returns size of encoded data (in octets).
+ */
+int cmtspeech_msg_encode_dl_data_header_v5(uint8_t *buf, int len, uint16_t frame_counter, uint8_t spc_flags, uint8_t data_length, uint8_t sample_rate, uint8_t codec_sample_rate, uint8_t data_type)
 {
   if (len < 4)
     return -1;
 
   buf[BYTE0] = frame_counter >> 8;
   buf[BYTE1] = frame_counter;
-  buf[BYTE2] = (spc_flags & 0x1f) >> 2;
-  buf[BYTE3] = 
+  buf[BYTE2] =
+    (codec_sample_rate & 0x3) << 7 |
+    ((spc_flags >> 2) & 0x1f);
+  buf[BYTE3] =
     (spc_flags & 0x3) << 6 |
     (data_length & 0x3) << 4 |
     (sample_rate & 0x3) << 2 |
@@ -164,27 +178,46 @@ int cmtspeech_msg_encode_dl_data_header(uint8_t *buf, int len, uint16_t frame_co
 
 /**
  * Decodes CMT speech message in 'buf'. Results are stored to locations
- * given as arguments. If an argument is NULL, it is ignored.
+ * given as arguments.
  *
  * @return 0 on success, non-zero otherwise
  */
 int cmtspeech_msg_decode_dl_data_header(uint8_t *buf, int len, uint16_t *frame_counter, uint8_t *spc_flags, uint8_t *data_length, uint8_t *sample_rate, uint8_t *data_type)
 {
+  uint8_t tmp;
+  return cmtspeech_msg_decode_dl_data_header_v5(buf,
+						len,
+						frame_counter,
+						spc_flags,
+						data_length,
+						sample_rate,
+						&tmp,
+						data_type);
+}
+
+/**
+ * Decodes CMT speech message in 'buf'. Results are stored to locations
+ * given as arguments.
+ *
+ * Variant of cmtspeech_msg_decode_dl_data_header() for ABI
+ * compatibility.
+ *
+ * @return 0 on success, non-zero otherwise
+ */
+int cmtspeech_msg_decode_dl_data_header_v5(uint8_t *buf, int len, uint16_t *frame_counter, uint8_t *spc_flags, uint8_t *data_length, uint8_t *sample_rate, uint8_t *codec_sample_rate, uint8_t *data_type)
+{
+
   if (len < 4)
     return -1;
 
-  if (frame_counter)
-    *frame_counter = buf[BYTE0] << 8 | buf[BYTE1];
-  if (spc_flags)
-    *spc_flags = 
-      ((buf[BYTE2] & 0x1f) << 2) |
-      ((buf[BYTE3] >> 6) & 0x3); 
-  if (data_length)
-    *data_length = (buf[BYTE3] >> 4) & 0x3;
-  if (sample_rate)
-    *sample_rate = (buf[BYTE3] >> 2) & 0x3;
-  if (data_type)
-    *data_type = buf[BYTE3] & 0x3;
+  *frame_counter = buf[BYTE0] << 8 | buf[BYTE1];
+  *spc_flags =
+    ((buf[BYTE2] & 0x1f) << 2) |
+    ((buf[BYTE3] >> 6) & 0x3);
+  *data_length = (buf[BYTE3] >> 4) & 0x3;
+  *sample_rate = (buf[BYTE3] >> 2) & 0x3;
+  *codec_sample_rate = (buf[BYTE2] >> 5) & 0x3;
+  *data_type = buf[BYTE3] & 0x3;
 
   return 0;
 }
@@ -197,16 +230,16 @@ int cmtspeech_msg_encode_speech_config_req(cmtspeech_cmd_t *cmd, uint8_t speech_
 {
   cmd->d.buf[BYTE0] = (CMTSPEECH_SPEECH_CONFIG_REQ << 4) | CMTSPEECH_DOMAIN_CONTROL;
   cmd->d.buf[BYTE1] = 0; /* part of reserved range */
-  cmd->d.buf[BYTE2] = 
+  cmd->d.buf[BYTE2] =
     (speech_data_stream & 0x1) << 3 |
     (call_user_connecting_ind & 0x1) << 2 |
     (codec_info & 0xf) >> 2;
-  cmd->d.buf[BYTE3] = 
-    ((codec_info & 0xf) << 6) | 
-    ((cellular_info & 0x3) << 4) | 
+  cmd->d.buf[BYTE3] =
+    ((codec_info & 0xf) << 6) |
+    ((cellular_info & 0x3) << 4) |
     ((sample_rate & 0x3) << 2) |
     (data_format & 0x3);
-  
+
   return 4;
 }
 
@@ -227,11 +260,11 @@ int cmtspeech_msg_decode_speech_config_req(const cmtspeech_cmd_t cmd, uint8_t *s
       (cmd.d.buf[BYTE2] >> 2) & 0x1;
 
   if (codec_info)
-    *codec_info = 
+    *codec_info =
       (cmd.d.buf[BYTE2] << 2 | cmd.d.buf[BYTE3] >> 6) & 0xf;
 
   if (cellular_info)
-    *cellular_info = 
+    *cellular_info =
       (cmd.d.buf[BYTE3] >> 4) & 0x3;
 
   if (sample_rate)
@@ -253,7 +286,7 @@ static int priv_cmtspeech_msg_encode_simple_message(cmtspeech_cmd_t *cmd, unsign
   cmd->d.buf[BYTE1] = 0;
   cmd->d.buf[BYTE2] = 0;
   cmd->d.buf[BYTE3] = 0;
-  
+
   return 4;
 }
 
@@ -283,11 +316,11 @@ int cmtspeech_msg_encode_timing_config_ntf(cmtspeech_cmd_t *cmd, uint16_t msec, 
 {
   cmd->d.buf[BYTE0] = (CMTSPEECH_TIMING_CONFIG_NTF << 4) | CMTSPEECH_DOMAIN_CONTROL;
   cmd->d.buf[BYTE1] = (msec & 0x1ff) >> 6;
-  cmd->d.buf[BYTE2] = 
+  cmd->d.buf[BYTE2] =
     ((msec & 0x1ff) << 2) |
     (usec & 0x3ff) >> 8;
   cmd->d.buf[BYTE3] = usec & 0xff;
-  
+
   return 4;
 }
 
@@ -319,7 +352,7 @@ int cmtspeech_msg_encode_ssi_config_req(cmtspeech_cmd_t *cmd, uint8_t layout, ui
   cmd->d.buf[BYTE1] = 0x0;
   cmd->d.buf[BYTE2] = layout & 0x7;
   cmd->d.buf[BYTE3] = ((version & 0xf) << 1) | (state & 0x1);
-  
+
   return 4;
 }
 
@@ -353,7 +386,7 @@ int cmtspeech_msg_encode_ssi_config_resp(cmtspeech_cmd_t *cmd, uint8_t layout, u
   cmd->d.buf[BYTE1] = 0x0;
   cmd->d.buf[BYTE2] = layout & 0x7;
   cmd->d.buf[BYTE3] = result & 0x3;
-  
+
   return 4;
 }
 
@@ -398,7 +431,7 @@ int cmtspeech_msg_encode_reset_conn_resp(cmtspeech_cmd_t *cmd)
   cmd->d.buf[BYTE1] = 0x0;
   cmd->d.buf[BYTE2] = 0x0;
   cmd->d.buf[BYTE3] = 0x0;
-  
+
   return 4;
 }
 
@@ -412,7 +445,7 @@ int cmtspeech_msg_encode_reset_conn_req(cmtspeech_cmd_t *cmd)
   cmd->d.buf[BYTE1] = 0x0;
   cmd->d.buf[BYTE2] = 0x0;
   cmd->d.buf[BYTE3] = 0x0;
-  
+
   return 4;
 }
 
@@ -426,7 +459,7 @@ int cmtspeech_msg_encode_speech_config_resp(cmtspeech_cmd_t *cmd, uint8_t result
   cmd->d.buf[BYTE1] = 0x0;
   cmd->d.buf[BYTE2] = 0x0;
   cmd->d.buf[BYTE3] = result;
-  
+
   return 4;
 }
 
@@ -463,7 +496,7 @@ int cmtspeech_msg_encode_test_ramp_ping(cmtspeech_cmd_t *cmd, uint8_t domain, ui
   cmd->d.buf[BYTE1] = replydomain & 0xf;
   cmd->d.buf[BYTE2] = rampstart;
   cmd->d.buf[BYTE3] = ramplen;
-  
+
   return 4;
 
 }
