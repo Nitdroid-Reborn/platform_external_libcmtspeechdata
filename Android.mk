@@ -25,6 +25,7 @@ LOCAL_C_INCLUDES := \
 ##
 
 LOCAL_MODULE:=libcmtspeechdata
+LOCAL_MODULE_TAGS := optional
 LOCAL_PRELINK_MODULE:=false
 
 include $(BUILD_SHARED_LIBRARY)
@@ -52,6 +53,7 @@ LOCAL_C_INCLUDES:= \
 ##
 
 LOCAL_MODULE:=libcheck_static
+LOCAL_MODULE_TAGS := tests
 
 include $(BUILD_STATIC_LIBRARY)
 
@@ -65,6 +67,7 @@ LOCAL_C_INCLUDES:=$(LOCAL_PATH)/check
 LOCAL_STATIC_LIBRARIES:=libcheck_static
 LOCAL_SHARED_LIBRARIES:=libcmtspeechdata
 LOCAL_MODULE:=test_cmtspeech_msgs
+LOCAL_MODULE_TAGS := tests
 include $(BUILD_EXECUTABLE)
 
 include $(CLEAR_VARS)
@@ -73,6 +76,7 @@ LOCAL_C_INCLUDES:=$(LOCAL_PATH)/check
 LOCAL_STATIC_LIBRARIES:=libcheck_static
 LOCAL_SHARED_LIBRARIES:=libcmtspeechdata
 LOCAL_MODULE:=test_cmtspeech
+LOCAL_MODULE_TAGS := tests
 include $(BUILD_EXECUTABLE)
 
 include $(CLEAR_VARS)
@@ -80,4 +84,6 @@ LOCAL_SRC_FILES:= utils/cmtspeech_ofono_test.c
 LOCAL_C_INCLUDES:= $(call include-path-for, dbus)
 LOCAL_SHARED_LIBRARIES:=libcmtspeechdata libdbus
 LOCAL_MODULE:=cmtspeech_ofono_test
+LOCAL_MODULE_TAGS := tests
 include $(BUILD_EXECUTABLE)
+
