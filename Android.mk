@@ -88,3 +88,14 @@ LOCAL_MODULE:=cmtspeech_ofono_test
 LOCAL_MODULE_TAGS := tests
 include $(BUILD_EXECUTABLE)
 
+include $(CLEAR_VARS)
+LOCAL_SRC_FILES:= send_cmtspeech_reset.c
+LOCAL_SHARED_LIBRARIES:=libcmtspeechdata
+LOCAL_MODULE:=send_cmtspeech_reset
+include $(BUILD_EXECUTABLE)
+
+include $(CLEAR_VARS)
+LOCAL_SRC_FILES:= cmtspeech_ramp_test.c
+LOCAL_SHARED_LIBRARIES:=libcmtspeechdata
+LOCAL_MODULE:=cmtspeech_ramp_test
+include $(BUILD_EXECUTABLE)
